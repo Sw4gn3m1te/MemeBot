@@ -2,13 +2,10 @@ import configparser
 import queue
 
 class CommandHandler:
-
     """
     handles the permissions aswell as the order of the command execution
     """
-
     def __init__(self, c, event):
-
         self.c = c
         self.event = event
         self.priority_queue = queue.Queue()
@@ -25,10 +22,7 @@ class CommandHandler:
 
 
     def parse_msg_to_req_dict(self):
-
         # {'targetmode': '3', 'msg': '#test', 'invokerid': '2', 'invokername': 'DRAW MONSTA CARDO', 'invokeruid': 'VUIuVaoZpicscTxXuM6kO+7j1hM='}
-
-        req_dict = {}
         msg = str(self.event[0]['msg'])
 
         invoker_name = str(self.event[0]['invokername'])
@@ -60,7 +54,6 @@ class CommandHandler:
         """
         checks if the user requesting a bot action is allowed to do so
         """
-
         uid_level_list =[]
         for row in range(len(self.config.items("PermissionGroup0"))):
             uid_level_list.append(self.config.items("PermissionGroup0")[row][0])
@@ -89,10 +82,8 @@ class CommandHandler:
             return False
 
     def check_command_priority(self, req_dict):
-
         for row in range(len(self.config.items("RepeatingCommands"))):
             self.repeating_command_list.append(self.config.items("RepeatingCommands")[row][0])
-
         if req_dict['cmd']['name'] in self.repeating_command_list:
             return False
         else:
@@ -101,8 +92,8 @@ class CommandHandler:
 
     def queue_parser(self, req_dict):
         print(req_dict)
-        if self.check_permission(req_dict) == True:
-            if self.check_command_priority(req_dict) == True:
+        if self.check_permission(req_dict):
+            if self.check_command_priority(req_dict):
                 self.priority_queue.put(req_dict)
             else:
                 self.repeating_queue.put(req_dict)

@@ -5,35 +5,34 @@ import configparser
 from random import randint
 import commands
 
-
 logging.basicConfig(filename="log.log", level=logging.INFO)
+event
 
-def exception_logger(function):
 
+def exception_logger(func):
     def wrapper(*args, **kwargs):
         try:
-            return function(*args, **kwargs)
+            return func(*args, **kwargs)
         except Exception as e:
-            logger = logging.getLogger(function.__name__)
+            logger = logging.getLogger(func.__name__)
             logger.error(e, *args, **kwargs)
-
     return wrapper
+
 
 class Bot:
     """
     Teamspeak 3 Bot
     """
-
     @exception_logger
     def __init__(self, host, port, serverid, username, password, defaultchannelid, botname):
         """
         creates Bot
         :param host: address the bot connects to
         :param port: port on which the bot connects to the server (10011 is the standard port)
-        :param sid: server ID which the bot connects to (1 if only one server is running on the server)
+        :param serverid: server ID which the bot connects to (1 if only one server is running on the server)
         :param username: username to login as a server query
         :param password: password to login as a server query
-        :param defaultchannel: the channel the bot connects to after joining the server
+        :param defaultchannelid: the channel the bot connects to after joining the server
         :param botname: the name of the bot
         """
 
@@ -102,7 +101,7 @@ class Bot:
         loads bot settings from config.ini file
         """
 
-        '''
+        """ 
         config = configparser.ConfigParser()
         config.read("config.ini")
         self.host = config.items("General")[0][1]
@@ -112,7 +111,7 @@ class Bot:
         self.password = config.items("General")[4][1]
         self.bot_name = config.items("General")[5][1]
         self.default_channel_id = config.items("General")[6][1]
-        '''
+        """
 
         config = configparser.ConfigParser(allow_no_value=True)
         config.read("config.ini")
@@ -126,19 +125,15 @@ class Bot:
         sends a keep alive signals to the server and starts waiting for events
         """
         global event
-        def keep_alive_loop(interval=5):
 
-            while True:
-                if self.kill_keep_alive == True:
-                    break
+        def keep_alive_loop(interval=5):
+            while not self.kill_keep_alive:
                 self.c.send_keepalive()
                 try:
                     event = self.c.wait_for_event(interval)
                     commands.CommandHandler(self.c, event)
                 except:
                     pass
-
-
 
         self.t_keep_alive = Thread(target=keep_alive_loop)
         self.t_keep_alive.start()
