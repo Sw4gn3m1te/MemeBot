@@ -1,0 +1,33 @@
+{
+  "Default": {
+    "host": "192.168.0.4",
+    "port": "10011",
+    "serverid": 1,
+    "username": "serveradmin",
+	"password": "6xxhEjoC",
+	"botname":  "TestBot420",
+	"defaultchannelid": 37
+  },
+  "CommandCharacter": "!",
+  
+  "PermissionGroup3": {
+    "VUIuVaoZpicscTxXuM6kO+7j1hM=": "",
+	"Swagnemite420": ""
+  },
+  "PermissionGroup2": {
+	"lululu": ""
+  },
+  "PermissionGroup1": {
+	"kekologe": ""
+  },
+  "CommandPermissionLevel": {
+	"help": 3,
+	"test": 2,
+	"kek": 1
+  },
+  "RepeatingCommands": {
+  "pokespam": "",
+  "trollmove": "",
+  "ctext": ""
+  }
+}
