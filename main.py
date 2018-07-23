@@ -1,15 +1,16 @@
 import bot, commands, cmd_queue, json
 
-global req_dict
-
 
 cmd_queue = cmd_queue.CommandQueue()
 b = bot.Bot.create_bot_from_config()
 
 
 while True:
-    if b.event is not None:
-        ch = commands.CommandHandler(b.event)
+
+    event = b.keep_alive_loop()
+
+    if event is not None:
+        ch = commands.CommandHandler(event)
         if ch.check_for_command_character():
             req_dict = ch.parse_msg_to_req_dict()
 
@@ -32,12 +33,11 @@ while True:
                                            format(current_permission_level, needed_permission))
                 cmd_queue.add_to_priority_queue(req_dict)
 
-        b.event = None
-
     else:
-        #print(cmd_queue.next_command)
-        if cmd_queue.next_command is not None:
-            print(cmd_queue.next_command)
-            commands.CommandExecute(b.c, cmd_queue.next_command)
+        command = cmd_queue.get_next_command()
+        if command is not None:
+            commands.CommandExecute(b.c, command)
         else:
             pass
+
+

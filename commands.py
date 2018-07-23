@@ -44,7 +44,6 @@ class CommandHandler:
     def parse_msg_to_req_dict(self):
         # {'targetmode': '3', 'msg': '#test', 'invokerid': '2', 'invokername': 'DRAW MONSTA CARDO', 'invokeruid': 'VUIuVaoZpicscTxXuM6kO+7j1hM='}
         msg = str(self.event[0]['msg'])
-
         invoker_name = str(self.event[0]['invokername'])
         invoker_uid = str(self.event[0]['invokeruid'])
         invoker_clid = str(self.event[0]['invokerid'])
@@ -108,39 +107,78 @@ class CommandExecute:
     def choose_command(self):
 
         cmd = self.req_dict['cmd']['name']
+
         if cmd == 'help':
-            self.help()
+            self.help(*self.req_dict['cmd']['args'])
+
+        elif cmd == 'data':
+            self.data(*self.req_dict['cmd']['args'])
 
         elif cmd == 'b':
             self.b(*self.req_dict['cmd']['args'])
+        elif cmd == 'database':
+            self.database()
 
-        elif cmd == 'data':
-            self.data()
+    def help(self, command=None): #execpt type error
+        """
+        Usage: help <command>
+        """
+        if command is None:
+            self.c.query("sendtextmessage", targetmode=1, target=self.req_dict['invoker']['clid'], msg="There is no help ;)").all()
+        else:
+            self.c.query("sendtextmessage", targetmode=1, target=self.req_dict['invoker']['clid'],
+                         msg="help text for {}".format(command)).all()
 
-    def help(self):
-        print("yeet")
+        #self.c.sendtextmessage(targetmode=1, target=self.req_dict['invoker']['clid'], msg="There is no help ;)")
 
-    def data(self):
-        resp = self.c.clientlist()
-        for client in resp:
-            if client["client_type"] == "1":
-                pass
-            else:
-                id = client["clid"]
-                name = client["client_nickname"]
-                self.c.sendtextmessage(targetmode=1, target=self.req_dict['invoker']['clid'], msg=str(name + ":  " + id))
+    def data(self, clid=None):
+        """
+        Usage: data <clientid>
+        """
+
+        resp = self.c.exec_("clientlist")
+        if clid is None:
+            for client in resp:
+                if client["client_type"] == "1":
+                    pass
+                else:
+                    id = client["clid"]
+                    name = client["client_nickname"]
+                    self.c.query("sendtextmessage", targetmode=1, target=self.req_dict['invoker']['clid'],
+                                 msg=str(name + ":  " + id)).all()
+        else:
+            for client in resp:
+
+                if client['clid'] == clid:
+                    #info = self.c.exec_("clientinfo", clid=client['clid'])
+                    self.c.query("sendtextmessage", targetmode=1, target=self.req_dict['invoker']['clid'],
+                                 msg=client).all()
+
+    def database(self):
+        """
+        Usage: database
+        """
+        for line in self.c.exec_("clientdblist"):
+            self.c.query("sendtextmessage", targetmode=1, target=self.req_dict['invoker']['clid'], msg=line).all()
+
 
     def b(self, clid, duration, reason):
 
-        self.c.sendtextmessage(targetmode=1, target=clid, msg=duration)
-        #self.c.sendtextmessage(targetmode=1, target=self.req_dict['invoker']['clid'], msg=clid)
         """
         Usage: b <clid> <duration> <reason>
         """
-    def pokespam(self, target, ammount, msg):
-        self.c.clientpoke(target, msg)
-        if self.req_dict['cmd']['repeats'] > 0:
-            self.req_dict['cmd']['repeats'] = self.req_dict['cmd']['repeats'] - 1
+
+        self.c.query("sendtextmessage", targetmode=1, target=self.req_dict['invoker']['clid'],
+                     msg="{} has been banned".format(clid)).all()
+        self.c.query("banclient", clid=clid, time=duration, banreason=reason).all()
+
+
+    #def r6ops(self, operator):
+
+    #def pokespam(self, target, ammount, msg):
+    #    self.c.clientpoke(target, msg)
+    #    if self.req_dict['cmd']['repeats'] > 0:
+    #        self.req_dict['cmd']['repeats'] = self.req_dict['cmd']['repeats'] - 1
 
 
 

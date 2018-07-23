@@ -1,6 +1,5 @@
 import queue
 import commands
-from threading import Thread
 
 
 class CommandQueue:
@@ -11,9 +10,6 @@ class CommandQueue:
         self.normal_queue = queue.Queue()
         self.next_command = None
 
-        t = Thread(target=self.get_next_command)
-        t.start()
-
     def add_to_priority_queue(self, req_dict):
         self.priority_queue.put(req_dict)
 
@@ -21,12 +17,13 @@ class CommandQueue:
         self.normal_queue.put(req_dict)
 
     def get_next_command(self):
-        while True:
-            if self.priority_queue.qsize() > 0:
-                self.next_command = self.priority_queue.get()
-            else:
-                try:
-                    self.next_command = self.normal_queue.get()
-                except queue.Empty:
-                    self.next_command = None
-                    pass
+        if self.priority_queue.qsize() > 0:
+            return self.priority_queue.get()
+        elif self.normal_queue.qsize() > 0:
+            return self.normal_queue.get()
+        else:
+            return None
+
+
+
+

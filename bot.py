@@ -1,5 +1,4 @@
 import ts3
-from threading import Thread
 import logging
 import json
 from random import randint
@@ -26,7 +25,7 @@ class Bot:
     Teamspeak 3 Bot
     """
     @exception_logger
-    def __init__(self, host, port, serverid, username, password, defaultchannelid, botname):
+    def __init__(self, host, queryport, serverport, serverid, username, password, defaultchannelid, botname):
         """
         creates Bot
         :param host: address the bot connects to
@@ -42,7 +41,8 @@ class Bot:
         self.kill_keep_alive = False
 
         self.host = host
-        self.port = port
+        self.query_port = queryport
+        self.server_port = serverport
         self.sid = serverid
         self.username = username
         self.password = password
@@ -51,8 +51,6 @@ class Bot:
 
         self.c = self.connect()
         self.setup_bot()
-        t = Thread(target=self.keep_alive_loop)
-        t.start()
 
         print("Bot started!")
 
@@ -61,7 +59,7 @@ class Bot:
         """
         connects the bot to the server
         """
-        self.c = ts3.query.TS3Connection(self.host, self.port)
+        self.c = ts3.query.TS3ServerConnection(self.host, self.query_port)
         return self.c
 
     @exception_logger
@@ -82,20 +80,29 @@ class Bot:
         selects server, sets nickname, joins defaultchannel, stats the eventhandler
         """
 
-        self.c.login(client_login_name=self.username, client_login_password=self.password)
-        self.c.use(sid=self.sid)
-        self.c.clientupdate(client_nickname=self.bot_name)
-        self.c.clientmove(clid=self.c.whoami()[0]["client_id"], cid=self.default_channel_id)
+        self.c.exec_("login", client_login_name=self.username, client_login_password=self.password)
+        self.c.exec_("use", sid=self.sid, port=self.server_port)
+        self.c.exec_("clientupdate", client_nickname=self.bot_name)
+        self.c.exec_("clientmove", clid=self.c.query("whoami").all()[0]["client_id"], cid=self.default_channel_id)
 
-        self.c.servernotifyregister(event="textserver")  # targetmode 3
-        self.c.servernotifyregister(event="textchannel")  # targetmode 2
-        self.c.servernotifyregister(event="textprivate")  # targetmode 1
+        #self.c.login(client_login_name=self.username, client_login_password=self.password)
+        #self.c.use(sid=self.sid)
+        #self.c.clientupdate(client_nickname=self.bot_name)
+        #self.c.clientmove(clid=self.c.whoami()[0]["client_id"], cid=self.default_channel_id)
+
+        self.c.exec_("servernotifyregister", event="textserver")
+        self.c.exec_("servernotifyregister", event="textchannel")
+        self.c.exec_("servernotifyregister", event="textprivate")
+
+        #self.c.servernotifyregister(event="textserver")  # targetmode 3
+        #self.c.servernotifyregister(event="textchannel")  # targetmode 2
+        #self.c.servernotifyregister(event="textprivate")  # targetmode 1
 
     @staticmethod
     @exception_logger
     def create_ts3_viewer_bot(host, sid, server_port=9987, query_port=10011):
-        c = ts3.query.TS3Connection(host, query_port)
-        c.use(sid=sid, port=server_port)
+        c = ts3.query.TS3ServerConnection(host, query_port)
+        c.query("use", sid=sid, port=server_port)
 
     @staticmethod
     @exception_logger
@@ -122,13 +129,16 @@ class Bot:
         return Bot(**config['Default'])
 
     @exception_logger
-    def keep_alive_loop(self, interval=5):
+    def keep_alive_loop(self, interval=0.1):
         while not self.kill_keep_alive:
             self.c.send_keepalive()
             try:
                 self.event = self.c.wait_for_event(interval)
             except TimeoutError:
+                return None
                 pass
+            else:
+                return self.event
 
 
 if __name__ == '__main__':
