@@ -24,6 +24,10 @@ class CommandQueue:
         else:
             return None
 
+    def clear_queues(self):
+        self.normal_queue.queue.clear()
+        self.priority_queue.queue.clear()
+
 
 
 

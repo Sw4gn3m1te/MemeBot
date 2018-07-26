@@ -2,6 +2,11 @@ import json
 import queue
 import logging
 import bot
+import asyncio
+import rainbowsix
+from subprocess import call
+import random
+import ts3
 
 
 class CommandHandler:
@@ -20,15 +25,6 @@ class CommandHandler:
         with open('config.json', 'r') as f:
             self.config = json.load(f)
 
-        #self.req_dict = self.parse_msg_to_req_dict()
-        #self.queue_filler(self.req_dict)
-
-
-
-        """
-        if type event = req_dict then....
-        other __init__
-        """
 
     def check_for_command_character(self):
         cc = self.config['CommandCharacter']
@@ -42,11 +38,14 @@ class CommandHandler:
 
 
     def parse_msg_to_req_dict(self):
-        # {'targetmode': '3', 'msg': '#test', 'invokerid': '2', 'invokername': 'DRAW MONSTA CARDO', 'invokeruid': 'VUIuVaoZpicscTxXuM6kO+7j1hM='}
+
         msg = str(self.event[0]['msg'])
-        invoker_name = str(self.event[0]['invokername'])
-        invoker_uid = str(self.event[0]['invokeruid'])
-        invoker_clid = str(self.event[0]['invokerid'])
+        try:
+            invoker_name = str(self.event[0]['invokername'])
+            invoker_uid = str(self.event[0]['invokeruid'])
+            invoker_clid = str(self.event[0]['invokerid'])
+        except KeyError:
+            print(self.event[0])
 
         #except Index error
         msg = msg[len(self.command_character):]
@@ -56,10 +55,11 @@ class CommandHandler:
 
         repeats = 0
         if cmd_name in self.config['RepeatingCommands'].keys():
-            repeats = cmd_args[1] #2 arg aus cmd args
+            repeats = cmd_args[-1] #letzte arg aus cmd args
+            cmd_args = cmd_args[:-1]
 
         req_dict = {"invoker": {"name": invoker_name, "uid": invoker_uid, "clid": invoker_clid},
-                    "cmd": {"name": cmd_name, "args": cmd_args, "repeats": repeats}}
+                    "cmd": {"name": cmd_name, "args": cmd_args, 'repeats': repeats}}
 
         self.req_dict = req_dict
         return req_dict
@@ -102,7 +102,10 @@ class CommandExecute:
 
         self.c = c
         self.req_dict = req_dict
+        self.repeats_left = 0
+        self.command_done = False
         self.choose_command()
+
 
     def choose_command(self):
 
@@ -112,55 +115,67 @@ class CommandExecute:
             self.help(*self.req_dict['cmd']['args'])
 
         elif cmd == 'data':
-            self.data(*self.req_dict['cmd']['args'])
+            self.data()
 
         elif cmd == 'b':
             self.b(*self.req_dict['cmd']['args'])
+
         elif cmd == 'database':
             self.database()
+
+        elif cmd == 'pokespam':
+            self.pokespam(*self.req_dict['cmd']['args'])
+
+        elif cmd == 'r6rank':
+            self.r6rank(*self.req_dict['cmd']['args'])
+
+        elif cmd == 'r6ops':
+            self.r6ops(*self.req_dict['cmd']['args'])
+
+        elif cmd == 'trollmove':
+            self.trollmove(*self.req_dict['cmd']['args'])
+
+        elif cmd == 'botrename':
+            self.botrename(*self.req_dict['cmd']['args'])
 
     def help(self, command=None): #execpt type error
         """
         Usage: help <command>
         """
         if command is None:
-            self.c.query("sendtextmessage", targetmode=1, target=self.req_dict['invoker']['clid'], msg="There is no help ;)").all()
+            self.c.exec_("sendtextmessage", targetmode=1, target=self.req_dict['invoker']['clid'], msg="There is no help ;)")
         else:
-            self.c.query("sendtextmessage", targetmode=1, target=self.req_dict['invoker']['clid'],
-                         msg="help text for {}".format(command)).all()
+            self.c.exec_("sendtextmessage", targetmode=1, target=self.req_dict['invoker']['clid'],
+                         msg="help text for {}".format(command))
+        self.command_done = True
 
-        #self.c.sendtextmessage(targetmode=1, target=self.req_dict['invoker']['clid'], msg="There is no help ;)")
+    def botrename(self, name):
+        self.c.exec_("clientupdate", client_nickname=name)
 
-    def data(self, clid=None):
+    def data(self):
         """
         Usage: data <clientid>
         """
 
         resp = self.c.exec_("clientlist")
-        if clid is None:
-            for client in resp:
-                if client["client_type"] == "1":
-                    pass
-                else:
-                    id = client["clid"]
-                    name = client["client_nickname"]
-                    self.c.query("sendtextmessage", targetmode=1, target=self.req_dict['invoker']['clid'],
-                                 msg=str(name + ":  " + id)).all()
-        else:
-            for client in resp:
 
-                if client['clid'] == clid:
-                    #info = self.c.exec_("clientinfo", clid=client['clid'])
-                    self.c.query("sendtextmessage", targetmode=1, target=self.req_dict['invoker']['clid'],
-                                 msg=client).all()
+        for client in resp:
+            if client["client_type"] == "1":
+                pass
+            else:
+                id = client["clid"]
+                name = client["client_nickname"]
+                self.c.exec_("sendtextmessage", targetmode=1, target=self.req_dict['invoker']['clid'],
+                             msg=str(name + ":  " + id))
+        self.command_done = True
 
     def database(self):
         """
         Usage: database
         """
         for line in self.c.exec_("clientdblist"):
-            self.c.query("sendtextmessage", targetmode=1, target=self.req_dict['invoker']['clid'], msg=line).all()
-
+            self.c.exec_("sendtextmessage", targetmode=1, target=self.req_dict['invoker']['clid'], msg=line)
+        self.command_done = True
 
     def b(self, clid, duration, reason):
 
@@ -168,48 +183,77 @@ class CommandExecute:
         Usage: b <clid> <duration> <reason>
         """
 
-        self.c.query("sendtextmessage", targetmode=1, target=self.req_dict['invoker']['clid'],
-                     msg="{} has been banned".format(clid)).all()
-        self.c.query("banclient", clid=clid, time=duration, banreason=reason).all()
+        self.c.exec_("sendtextmessage", targetmode=1, target=self.req_dict['invoker']['clid'],
+                     msg="{} has been banned".format(clid))
+        self.c.exec_("banclient", clid=clid, time=duration, banreason=reason)
+        self.command_done = True
 
+    def r6ops(self, playername, operator):
+        r = rainbowsix.RainbowSix()
+        asyncio.get_event_loop().run_until_complete(r.server_auth("some mail", "some pw")) #
+        asyncio.get_event_loop().run_until_complete(r.get_op_stats(playername, operator))
+        r.draw_op()
+        call(split("sudo cp ./op_stat_img.png /var/www/html"))
+        self.c.exec_("channeledit", cid=37, channel_description="[img]some url/op_stat_img.png?{}[/img]".format(str(random.randint(1, 1E20)))) #
+        self.command_done = True
 
-    #def r6ops(self, operator):
+    def r6rank(self, playername):
+        r = rainbowsix.RainbowSix()
+        asyncio.get_event_loop().run_until_complete(r.server_auth("some mail", "some pw")) #
+        asyncio.get_event_loop().run_until_complete(r.get_ranked_stats(playername))
+        r.draw_ranked()
+        call(split("sudo cp ./op_stat_img.png /var/www/html"))
+        self.c.exec_("channeledit", cid=37, channel_description="[img]tnl5.ddns.net/op_stat_img.png?{}[/img]".format(str(random.randint(1, 1E20))))
+        self.command_done = True
+        self.command_done = True
 
-    #def pokespam(self, target, ammount, msg):
-    #    self.c.clientpoke(target, msg)
-    #    if self.req_dict['cmd']['repeats'] > 0:
-    #        self.req_dict['cmd']['repeats'] = self.req_dict['cmd']['repeats'] - 1
+    def pokespam(self, target, msg):
+        repeats = self.req_dict['cmd']['repeats']
+        self.c.exec_("clientpoke", clid=target, msg=msg)
+        if int(repeats) > 0:
+            self.repeats_left = int(repeats) - 1
+        else:
+            self.repeats_left = 0
+        self.command_done = True
 
+    def trollmove(self, target):
+        repeats = self.req_dict['cmd']['repeats']
+        channels = self.c.exec_("channellist")
+        cid_list = [channel["cid"] for channel in channels]
+        try:
+            self.c.exec_("clientmove", clid=target, cid=random.choice(cid_list))
+        except ts3.query.TS3QueryError:
+            pass
+        if int(repeats) > 0:
+            self.repeats_left = int(repeats) - 1
+        else:
+            self.repeats_left = 0
+        self.command_done = True
 
 
 
 
 '''
+def command(func):
+    def wrapper(self, *args, **kwargs):
+        try:
+            return func(self, *args, **kwargs)
+        except Exception as e:
+            logger = logging.getLogger(func.__name__)
+            logger.error(e)
 
-if req_dict['cmd']['repeats'] > 0:
-    req_dict['cmd']['repeats'] = req_dict['cmd']['repeats']-1
+
+            req_dict['cmd']['name'] = "msg"
+            if e == TypeError:
+                self.req_dict['cmd']['args'] = [self.req_dict['invoker']['clid'], "Wrong command usage.\n"
+                                                                                  "{}".format(cmd.__doc__)]
+            else:
+                self.req_dict['cmd']['args'] = [self.req_dict['invoker']['clid'], "Error during command execution"]
+
+            print(self.req_dict)
+            return CommandExecute(self.c, self.req_dict)
 
 
-# {uid: kwmSMgerowmvOG3tod=, cmd: {cmd: pokespam, forced_priority: False, is_on_repeat: True}}
 
-    def command(func):
-        def wrapper(self, *args, **kwargs):
-            try:
-                return func(self, *args, **kwargs)
-            except Exception as e:
-                logger = logging.getLogger(func.__name__)
-                logger.error(e)
-                cmd = self.req_dict['cmd']['name']
-                self.req_dict['cmd']['name'] = "msg"
-                if e == TypeError:
-                    self.req_dict['cmd']['args'] = [self.req_dict['invoker']['clid'], "Wrong command usage.\n"
-                                                                                      "{}".format(cmd.__doc__)]
-                else:
-                    self.req_dict['cmd']['args'] = [self.req_dict['invoker']['clid'], "Error during command execution"]
-
-                print(self.req_dict)
-                return CommandExecute(self.c, self.req_dict)
-
-        return wrapper
-
+    return wrapper
 '''
