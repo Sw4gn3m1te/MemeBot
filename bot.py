@@ -1,13 +1,12 @@
 import ts3
 import logging
 import json
-from random import randint
 import commands
 import queue
 import cmd_queue
+from time import sleep
 
-logging.basicConfig(filename="log.log", level=logging.INFO)
-
+logging.basicConfig(filename="./log.log", level=logging.INFO)
 
 
 def exception_logger(func):
@@ -68,11 +67,8 @@ class Bot:
         closes connection to server and shuts down keeps alive thread
         """
         self.kill_keep_alive = True
-        while True:
-            if self.t_keep_alive.is_alive():
-                continue
-
-            self.c.close()
+        sleep(1)
+        self.c.close()
 
     @exception_logger
     def setup_bot(self):
@@ -85,18 +81,10 @@ class Bot:
         self.c.exec_("clientupdate", client_nickname=self.bot_name)
         self.c.exec_("clientmove", clid=self.c.query("whoami").all()[0]["client_id"], cid=self.default_channel_id)
 
-        #self.c.login(client_login_name=self.username, client_login_password=self.password)
-        #self.c.use(sid=self.sid)
-        #self.c.clientupdate(client_nickname=self.bot_name)
-        #self.c.clientmove(clid=self.c.whoami()[0]["client_id"], cid=self.default_channel_id)
-
         self.c.exec_("servernotifyregister", event="textserver")
         self.c.exec_("servernotifyregister", event="textchannel")
         self.c.exec_("servernotifyregister", event="textprivate")
 
-        #self.c.servernotifyregister(event="textserver")  # targetmode 3
-        #self.c.servernotifyregister(event="textchannel")  # targetmode 2
-        #self.c.servernotifyregister(event="textprivate")  # targetmode 1
 
     @staticmethod
     @exception_logger

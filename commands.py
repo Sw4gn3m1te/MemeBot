@@ -7,6 +7,20 @@ import rainbowsix
 from subprocess import call
 import random
 import ts3
+from shlex import split
+from datetime import datetime
+
+logging.basicConfig(filename="./log.log", level=logging.INFO)
+
+
+def exception_logger(func):
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            logger = logging.getLogger(func.__name__)
+            logger.error(e)
+    return wrapper
 
 
 class CommandHandler:
@@ -25,7 +39,7 @@ class CommandHandler:
         with open('config.json', 'r') as f:
             self.config = json.load(f)
 
-
+    @exception_logger
     def check_for_command_character(self):
         cc = self.config['CommandCharacter']
         self.command_character = cc[0][0]
@@ -36,16 +50,13 @@ class CommandHandler:
         else:
             return False
 
-
+    @exception_logger
     def parse_msg_to_req_dict(self):
 
         msg = str(self.event[0]['msg'])
-        try:
-            invoker_name = str(self.event[0]['invokername'])
-            invoker_uid = str(self.event[0]['invokeruid'])
-            invoker_clid = str(self.event[0]['invokerid'])
-        except KeyError:
-            print(self.event[0])
+        invoker_name = str(self.event[0]['invokername'])
+        invoker_uid = str(self.event[0]['invokeruid'])
+        invoker_clid = str(self.event[0]['invokerid'])
 
         #except Index error
         msg = msg[len(self.command_character):]
@@ -55,20 +66,22 @@ class CommandHandler:
 
         repeats = 0
         if cmd_name in self.config['RepeatingCommands'].keys():
-            repeats = cmd_args[-1] #letzte arg aus cmd args
-            cmd_args = cmd_args[:-1]
+            if not len(cmd_args) == 0:
+                repeats = cmd_args[-1]
+                cmd_args = cmd_args[:-1]
 
         req_dict = {"invoker": {"name": invoker_name, "uid": invoker_uid, "clid": invoker_clid},
-                    "cmd": {"name": cmd_name, "args": cmd_args, 'repeats': repeats}}
+                    "cmd": {"name": cmd_name, "args": cmd_args, 'repeats': repeats,
+                            "permission": {"have": "", "need": ""}}}
 
         self.req_dict = req_dict
         return req_dict
 
+    @exception_logger
     def check_permission(self):
         """
         checks if the user requesting a bot action is allowed to do so
         """
-        print(self.req_dict)
         if self.req_dict['invoker']['uid'] in self.config['PermissionGroup3'].keys():
             self.user_permission_level = 3
         elif self.req_dict['invoker']['uid'] in self.config['PermissionGroup2'].keys():
@@ -89,6 +102,7 @@ class CommandHandler:
         else:
             return False, self.user_permission_level, self.needed_command_permission_level
 
+    @exception_logger
     def check_priority(self):
         if self.req_dict['cmd']['name'] in self.config['RepeatingCommands'].keys():
             return False
@@ -104,8 +118,9 @@ class CommandExecute:
         self.req_dict = req_dict
         self.repeats_left = 0
         self.command_done = False
+        with open('config.json', 'r') as f:
+            self.config = json.load(f)
         self.choose_command()
-
 
     def choose_command(self):
 
@@ -113,6 +128,9 @@ class CommandExecute:
 
         if cmd == 'help':
             self.help(*self.req_dict['cmd']['args'])
+
+        elif cmd == 'msg':
+            self.msg(*self.req_dict['cmd']['args'])
 
         elif cmd == 'data':
             self.data()
@@ -138,24 +156,55 @@ class CommandExecute:
         elif cmd == 'botrename':
             self.botrename(*self.req_dict['cmd']['args'])
 
-    def help(self, command=None): #execpt type error
-        """
-        Usage: help <command>
-        """
-        if command is None:
-            self.c.exec_("sendtextmessage", targetmode=1, target=self.req_dict['invoker']['clid'], msg="There is no help ;)")
+        elif cmd == 'block':
+            self.block(*self.req_dict['cmd']['args'])
+
+        elif cmd == 'unblock':
+            self.unblock(*self.req_dict['cmd']['args'])
+
+        elif cmd == 'blocklist':
+            self.blocklist()
+
+        elif cmd == 'lastseen':
+            self.lastseen(*self.req_dict['cmd']['args'])
+
+        elif cmd == 'dc':
+            self.c.close()
+
         else:
             self.c.exec_("sendtextmessage", targetmode=1, target=self.req_dict['invoker']['clid'],
-                         msg="help text for {}".format(command))
+                         msg="command {} not found".format(cmd))
+            self.command_done = True
+
+    def help(self, command=None):
+
+        if command is None:
+            for key in self.config['HelpText'].keys():
+                if self.req_dict['cmd']['permission']['have'] >= self.config['CommandPermissionLevel'][key]:
+                    msg = key + ": " + self.config['HelpText'][key]
+                    self.c.exec_("sendtextmessage", targetmode=1, target=self.req_dict['invoker']['clid'],
+                                 msg=msg)
+        else:
+            if self.req_dict['cmd']['permission']['have'] >= self.config['CommandPermissionLevel'][command]:
+                msg = command + ": " + self.config['HelpText'][command]
+                self.c.exec_("sendtextmessage", targetmode=1, target=self.req_dict['invoker']['clid'],
+                             msg=msg)
+            else:
+                self.c.exec_("sendtextmessage", targetmode=1, target=self.req_dict['invoker']['clid'],
+                             msg="command {} not found".format(command))
+
+        self.command_done = True
+
+    def msg(self, target, msg):
+        self.c.exec_("sendtextmessage", targetmode=1, target=target,
+                     msg=msg)
         self.command_done = True
 
     def botrename(self, name):
         self.c.exec_("clientupdate", client_nickname=name)
+        self.command_done = True
 
     def data(self):
-        """
-        Usage: data <clientid>
-        """
 
         resp = self.c.exec_("clientlist")
 
@@ -170,18 +219,12 @@ class CommandExecute:
         self.command_done = True
 
     def database(self):
-        """
-        Usage: database
-        """
+
         for line in self.c.exec_("clientdblist"):
             self.c.exec_("sendtextmessage", targetmode=1, target=self.req_dict['invoker']['clid'], msg=line)
         self.command_done = True
 
     def b(self, clid, duration, reason):
-
-        """
-        Usage: b <clid> <duration> <reason>
-        """
 
         self.c.exec_("sendtextmessage", targetmode=1, target=self.req_dict['invoker']['clid'],
                      msg="{} has been banned".format(clid))
@@ -190,21 +233,22 @@ class CommandExecute:
 
     def r6ops(self, playername, operator):
         r = rainbowsix.RainbowSix()
-        asyncio.get_event_loop().run_until_complete(r.server_auth("some mail", "some pw")) #
+        asyncio.get_event_loop().run_until_complete(r.server_auth(self.config['BotMail'], self.config['BotPw']))
         asyncio.get_event_loop().run_until_complete(r.get_op_stats(playername, operator))
         r.draw_op()
         call(split("sudo cp ./op_stat_img.png /var/www/html"))
-        self.c.exec_("channeledit", cid=37, channel_description="[img]some url/op_stat_img.png?{}[/img]".format(str(random.randint(1, 1E20)))) #
+        self.c.exec_("channeledit", cid=37, channel_description="[img]tnl5.ddns.net/op_stat_img.png?{}[/img]".
+                     format(str(random.randint(1, 1E20))))
         self.command_done = True
 
     def r6rank(self, playername):
         r = rainbowsix.RainbowSix()
-        asyncio.get_event_loop().run_until_complete(r.server_auth("some mail", "some pw")) #
+        asyncio.get_event_loop().run_until_complete(r.server_auth(self.config['BotMail'], self.config['BotPw']))
         asyncio.get_event_loop().run_until_complete(r.get_ranked_stats(playername))
         r.draw_ranked()
         call(split("sudo cp ./op_stat_img.png /var/www/html"))
-        self.c.exec_("channeledit", cid=37, channel_description="[img]tnl5.ddns.net/op_stat_img.png?{}[/img]".format(str(random.randint(1, 1E20))))
-        self.command_done = True
+        self.c.exec_("channeledit", cid=37, channel_description="[img]tnl5.ddns.net/op_stat_img.png?{}[/img]".
+                     format(str(random.randint(1, 1E20))))
         self.command_done = True
 
     def pokespam(self, target, msg):
@@ -230,30 +274,63 @@ class CommandExecute:
             self.repeats_left = 0
         self.command_done = True
 
+    def block(self, ip, mode="full"):
 
+        if mode == "in":
+            call(split("sudo iptables -A INPUT -s {} -j DROP".format(ip)))
+        elif mode == "out":
+            call(split("sudo iptables -A OUTPUT -d* {} -j DROP".format(ip)))
+        elif mode == "full":
+            call(split("sudo iptables -A INPUT -s {} -j DROP".format(ip)))
+            call(split("sudo iptables -A OUTPUT -d {} -j DROP".format(ip)))
+        else:
+            self.c.exec_("sendtextmassage", targetmode=1, target=self.req_dict['invoker']['clid'],
+                         msg="wrong mode specified only (in, out, full) is allowed")
+            self.command_done = True
+            return
 
+        self.c.exec_("sendtextmessage", targetmode=1, target=self.req_dict['invoker']['clid'],
+                     msg=str("rule for {} ({}) added".format(ip, mode)))
+        self.command_done = True
 
-'''
-def command(func):
-    def wrapper(self, *args, **kwargs):
-        try:
-            return func(self, *args, **kwargs)
-        except Exception as e:
-            logger = logging.getLogger(func.__name__)
-            logger.error(e)
+    def unblock(self, ip, mode="single"):
+        if mode == "single":
+            call(split("sudo iptables -D INPUT -s {} -j DROP".format(ip)))
+            call(split("sudo iptables -D OUTPUT -d {} -j DROP".format(ip)))
+            self.c.exec_("sendtextmessage", targetmode=1, target=self.req_dict['invoker']['clid'],
+                         msg=str("rules for {} removed".format(ip)))
+        elif mode == "all":
+            call(split("sudo iptables -F"))
+            self.c.exec_("sendtextmessage", targetmode=1, target=self.req_dict['invoker']['clid'],
+                         msg=str("all rules removed".format(ip)))
+        else:
+            self.c.exec_("sendtextmessage", targetmode=1, target=self.req_dict['invoker']['clid'],
+                         msg="wrong mode specified only (single, all) is allowed")
+            self.command_done = True
+            return
 
+        self.command_done = True
 
-            req_dict['cmd']['name'] = "msg"
-            if e == TypeError:
-                self.req_dict['cmd']['args'] = [self.req_dict['invoker']['clid'], "Wrong command usage.\n"
-                                                                                  "{}".format(cmd.__doc__)]
+    def blocklist(self):
+
+        result = call(split("sudo iptables -L INPUT"))
+        self.c.exec_("sendtextmessage", targetmode=1, target=self.req_dict['invoker']['clid'],msg=result)
+        result = call(split("sudo iptables -L OUTPUT"))
+        self.c.exec_("sendtextmessage", targetmode=1, target=self.req_dict['invoker']['clid'], msg=result)
+
+        self.command_done = True
+
+    def lastseen(self, cldbid):
+
+        for line in self.c.exec_("clientdblist"):
+            if line['cldbid'] == cldbid:
+                date = str(datetime.fromtimestamp(int(line['client_lastconnected'])))
+                name = line['client_nickname']
+                msg = name + "was last seen on: " + date
+                self.c.exec_("sendtextmessage", targetmode=1, target=self.req_dict['invoker']['clid'], msg=msg)
             else:
-                self.req_dict['cmd']['args'] = [self.req_dict['invoker']['clid'], "Error during command execution"]
-
-            print(self.req_dict)
-            return CommandExecute(self.c, self.req_dict)
+                pass
+        self.command_done = True
 
 
 
-    return wrapper
-'''

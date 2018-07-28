@@ -2,7 +2,7 @@ import r6sapi as api
 import json
 import random
 import asyncio
-import urllib
+import urllib.request
 import PIL
 from PIL import ImageFont
 from PIL import Image
@@ -10,7 +10,6 @@ from PIL import ImageDraw
 
 import warnings
 warnings.filterwarnings("ignore")
-
 
 
 class RainbowSix:
@@ -79,9 +78,6 @@ class RainbowSix:
         operator = yield from player.get_operator(op_name)
         op_icon_url = yield from self.auth.get_operator_badge(op_name)
 
-        self.auth.session.connector.close()
-        self.auth.session.detach()
-
         op_win = operator.wins
         op_lose = operator.losses
         op_kill = operator.kills
@@ -100,9 +96,12 @@ class RainbowSix:
                           'op_w/l': op_wl, 'op_kill': op_kill, 'op_death': op_death, 'op_k/d': op_kd,
                           'op_icon_url': op_icon_url, 'player_name': player_name}
 
+        self.auth.session.connector.close()
+        self.auth.session.detach()
+
     def draw_ranked(self):
 
-        img = Image.new('RGB', (800, 400), color=(255, 255, 255))
+        img = Image.new('RGB', (800, 450), color=(255, 255, 255))
         d = ImageDraw.Draw(img)
 
         # Name
@@ -115,9 +114,10 @@ class RainbowSix:
         d.text((10, 120), "Operation Blood Orchid: ", fill=(1, 1, 1), font=font)
         d.text((10, 190), "Operation White Noise: ", fill=(1, 1, 1), font=font)
         d.text((10, 260), "Operation Chimera: ", fill=(1, 1, 1), font=font)
+        d.text((10, 330), "Operation Para Bellum", fill=(1, 1, 1), font=font)
 
         font = ImageFont.truetype("arial.ttf", 15)
-        for i in range(0, 280, 70):
+        for i in range(0, 330, 70):
             d.text((10, 80+i), "mmr: ", fill=(1, 1, 1), font=font)
             d.text((10, 100+i), "max_mmr: ", fill=(1, 1, 1), font=font)
             d.text((150, 80+i), "abandons: ", fill=(1, 1, 1), font=font)
@@ -128,7 +128,7 @@ class RainbowSix:
 
         # Stats
         i = 0
-        for j in range(6, 10):
+        for j in range(6, 11):
             d.text((90, 80+i), str(round(self.rank_dict[j]['mmr'], 1)), fill=(1, 1, 1), font=font)
             d.text((90, 100+i), str(round(self.rank_dict[j]['max_mmr'], 1)), fill=(1, 1, 1), font=font)
             d.text((270, 80+i), str(self.rank_dict[j]['abandon']), fill=(1, 1, 1), font=font)
