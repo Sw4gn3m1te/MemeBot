@@ -1,33 +1,65 @@
 {
   "Default": {
     "host": "192.168.0.4",
-    "port": "10011",
+    "queryport": 10011,
+	"serverport": 9987,
     "serverid": 1,
     "username": "serveradmin",
 	"password": "****",
-	"botname":  "TestBot420",
+	"botname":  "MemeBotv22",
 	"defaultchannelid": 37
   },
-  "CommandCharacter": "!",
+  
+  "CommandCharacter": "+",
+  "BotMail": "Example_{}@gmail.com",
+  "BotPw": "****",
   
   "PermissionGroup3": {
-    "VUIuVaoZpicscTxXuM6kO+7j1hM=": "",
-	"Swagnemite420": ""
+	"VUIuVaoZpicscTxXuM6kO+7j1hM=": "",
+	"Yzflb8oRDG1MtqtS+ddjkB2gtws=": ""
   },
   "PermissionGroup2": {
-	"lululu": ""
-  },
-  "PermissionGroup1": {
-	"kekologe": ""
+	"CSh/qn8lT5xn7Lv22+3J7nLJyV8=": "",
+	"YNSicRvHiDT+Qn3hmmmLGY7tkOw=": "",
+	"GQfJl67KetpQaP1ETl+n1pEukhY=": ""
+
   },
   "CommandPermissionLevel": {
-	"help": 3,
-	"test": 2,
-	"kek": 1
+	"help": 1,
+	"data": 2,
+	"database": 2,
+	"b": 3,
+	"pokespam": 3,
+	"trollmove": 3,
+	"block": 3,
+	"unblock": 3,
+	"r6rank": 1,
+	"r6ops": 1,
+	"botrename": 2,
+	"blocklist": 3,
+	"dc": 3,
+	"lastseen": 1,
+	"stop": 2
   },
   "RepeatingCommands": {
   "pokespam": "",
   "trollmove": "",
   "ctext": ""
+  },
+  "HelpText": {
+	"help": "<command> shows help for a command",
+	"data": "gets all clientids",
+	"database": "returns the client database of the server",
+	"b": "<ClientID><Duration><Reason> Ban client",
+	"lastseen": "<ClientDbID> date the client was last seen on the server",
+	"trollmove": "<ClientID><Amount> Moves target to random channels",
+	"pokespam": "<ClientID><Amount><Msg> Spams target with pokes",
+	"botrename": "<Name> Renames bot",
+	"block": "<IP> <Mode> Blocks ip from accessing server (Mode must be set to [in, out, full]",
+	"unblock": "<IP> <Mode> Unblocks the ip from accessing server (Mode must me single or all)",
+	"blocklist": "List of blocked ips",
+	"r6rank": "<Playername> Retrieves the RB6 Rank and MMR for one season",
+	"r6ops":	"<Playername><Operatorname> Retrieves the RB6 stats for an Operator for an User",
+	"stop": "Stops the madness ;D"
   }
 }
