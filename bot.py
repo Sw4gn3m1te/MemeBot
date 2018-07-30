@@ -73,7 +73,7 @@ class Bot:
     @exception_logger
     def setup_bot(self):
         """
-        selects server, sets nickname, joins defaultchannel, stats the eventhandler
+        selects server, sets nickname, joins defaultchannel, starts the eventhandler
         """
 
         self.c.exec_("login", client_login_name=self.username, client_login_password=self.password)
